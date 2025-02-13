@@ -1,0 +1,77 @@
+diff --git a/core/corr.py b/core/corr.py
+index 3183846..47e26c1 100644
+--- a/core/corr.py
++++ b/core/corr.py
+@@ -1,7 +1,7 @@
+ import torch
+ import torch.nn as nn
+ import torch.nn.functional as F
+-from utils.utils import coords_grid, bilinear_sampler
++from core.utils.utils import coords_grid, bilinear_sampler
+ 
+ try:
+     import alt_cuda_corr
+diff --git a/core/datasets.py b/core/datasets.py
+index b5d9e90..707889a 100644
+--- a/core/datasets.py
++++ b/core/datasets.py
+@@ -12,9 +12,9 @@ import h5py
+ from tqdm import tqdm
+ from glob import glob
+ import os.path as osp
+-from utils import frame_utils
+-from utils.augmentor import FlowAugmentor, SparseFlowAugmentor
+-from utils.utils import induced_flow, check_cycle_consistency
++from core.utils import frame_utils
++from core.utils.augmentor import FlowAugmentor, SparseFlowAugmentor
++from core.utils.utils import induced_flow, check_cycle_consistency
+ from ddp_utils import *
+ 
+ class FlowDataset(data.Dataset):
+diff --git a/core/extractor.py b/core/extractor.py
+index c838330..4367c84 100644
+--- a/core/extractor.py
++++ b/core/extractor.py
+@@ -1,7 +1,7 @@
+ import torch
+ import torch.nn as nn
+ import torch.nn.functional as F
+-from layer import BasicBlock, conv1x1, conv3x3
++from core.layer import BasicBlock, conv1x1, conv3x3
+ 
+ class ResNetFPN(nn.Module):
+     """
+diff --git a/core/raft.py b/core/raft.py
+index 4c8d92f..b70e604 100644
+--- a/core/raft.py
++++ b/core/raft.py
+@@ -4,11 +4,11 @@ import math
+ import torch.nn as nn
+ import torch.nn.functional as F
+ 
+-from update import BasicUpdateBlock
+-from corr import CorrBlock
+-from utils.utils import coords_grid, InputPadder
+-from extractor import ResNetFPN
+-from layer import conv1x1, conv3x3
++from core.update import BasicUpdateBlock
++from core.corr import CorrBlock
++from core.utils.utils import coords_grid, InputPadder
++from core.extractor import ResNetFPN
++from core.layer import conv1x1, conv3x3
+ 
+ from huggingface_hub import PyTorchModelHubMixin
+ 
+diff --git a/core/update.py b/core/update.py
+index 08e00fd..52fd762 100644
+--- a/core/update.py
++++ b/core/update.py
+@@ -1,7 +1,7 @@
+ import torch
+ import torch.nn as nn
+ import torch.nn.functional as F
+-from layer import ConvNextBlock
++from core.layer import ConvNextBlock
+ 
+ class FlowHead(nn.Module):
+     def __init__(self, input_dim=128, hidden_dim=256, output_dim=4):

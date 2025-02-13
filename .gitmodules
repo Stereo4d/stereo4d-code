@@ -1,0 +1,6 @@
+[submodule "SEA-RAFT"]
+	path = SEA-RAFT
+	url = git@github.com:princeton-vl/SEA-RAFT.git
+[submodule "tapnet"]
+	path = tapnet
+	url = git@github.com:google-deepmind/tapnet.git
