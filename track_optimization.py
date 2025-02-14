@@ -62,7 +62,7 @@ def dilate_zeros(mask, window_size):
 
 
 @partial(jax.jit, static_argnums=(1, 2))
-def shift_with_edge_padding(array, shift, axis=0):
+def shift_with_edge_padding(array: jnp.ndarray, shift: int, axis: int = 0):
   """Shifts the elements of an array along a specified axis, padding with edge values.
 
   Parameters:
@@ -75,10 +75,8 @@ def shift_with_edge_padding(array, shift, axis=0):
   - A new array with the same shape as the input array, shifted and padded with
   edge values.
   """
-  # jax.debug.print("array: {x}", x=array.shape)
   ndim = array.ndim
   axis = axis % ndim  # Ensure axis is within the valid range
-  # jax.debug.print("ndim: {x}", x=ndim)
   # Compute padding widths
   pad_width = [(0, 0)] * ndim  # Initialize pad widths for all axes
   shift = int(shift)
@@ -86,11 +84,9 @@ def shift_with_edge_padding(array, shift, axis=0):
   pad_before = max(shift, 0)
   pad_after = max(-shift, 0)
   pad_width[axis] = (pad_before, pad_after)
-  # jax.debug.print("pad_width: {x} {y} {z}", x=pad_width, y=pad_before, z=pad_after)
 
   # Pad the array with edge values
   padded_array = jnp.pad(array, pad_width, mode='edge')
-  # jax.debug.print("padded_array: {x}", x=padded_array.shape)
 
   # Compute start and end indices for slicing
   start = pad_before
@@ -105,56 +101,58 @@ def shift_with_edge_padding(array, shift, axis=0):
   return result
 
 
-def compute_static_loss_pairwise(P_adjusted, masks, w_static):
+def compute_static_loss(P_adjusted: jnp.ndarray, masks: jnp.ndarray, w_static: float):
+  """
+  Compute the static loss for tracks.
+
+  Args:
+    P_adjusted (jnp.ndarray): Adjusted points array of shape (N, 3), invalid points are nans.
+    masks (jnp.ndarray): Mask array of shape (N,) True indicating valid points.
+    w_static (float): Static weight parameter.
+  """
   P_adjusted = jnp.nan_to_num(P_adjusted)
   masks = masks.astype(jnp.float32).reshape(-1)  # Shape (N,)
-  # jax.debug.print("P_adjusted_masked {x}", x=P_adjusted)
-  # norm = jnp.nansum(jnp.linalg.norm(P_adjusted, axis=-1) * masks) / (jnp.sum(masks) + 1e-8)
   norm = jnp.nansum(
       jnp.sqrt(jnp.sum(P_adjusted * P_adjusted * masks[:, None], axis=-1))
   ) / (jnp.sum(masks) + 1e-8)
-  # jax.debug.print("norm {x}", x=norm)
   P_adjusted_masked = (
       P_adjusted / (norm + 1e-5) * masks[:, None]
   )  # Shape (N, 3)
-  # P_adjusted_masked = P_adjusted  * masks[:, None]  # Shape (N, 3)
   # Compute pairwise differences
   diffs = (
       P_adjusted_masked[:, None, :] - P_adjusted_masked[None, :, :]
   )  # Shape (N, N, 3)
 
   # Compute squared distances
-  diffs_sqr = jnp.sum(diffs**2, axis=-1)  # Shape (N, N)
-
-  # norm_sqr = norm[:, None] * norm[None, :]
-  # jax.debug.print("norm.shape x {x}", x=norm.shape)
-  # jax.debug.print("norm {y}", y=norm)
-
-  # diffs_sqr = diffs_sqr / norm_sqr
-
+  diffs_sqr = jnp.sum(diffs ** 2, axis=-1)  # Shape (N, N)
   # Create pairwise mask: valid if both points are valid
   pairwise_masks = masks[:, None] * masks[None, :]  # Shape (N, N)
-  # jax.debug.print("pairwise_masks {x}", x=pairwise_masks)
-
   # Apply the pairwise mask to the squared distances
   masked_diffs_sqr = diffs_sqr * pairwise_masks  # Shape (N, N)
-  # jax.debug.print("masked_diffs_sqr {x}", x=masked_diffs_sqr)
 
   # Compute the number of valid pairs
   num_valid_pairs = jnp.sum(pairwise_masks)  # Scalar
   num_valid_pairs = jnp.maximum(num_valid_pairs, 1.0)
-  # jax.debug.print("num_valid_pairs {x}", x=num_valid_pairs)
 
   # Compute the static loss
   static_loss = (w_static / (2 * num_valid_pairs)) * jnp.nansum(
       masked_diffs_sqr
   )
-  # jax.debug.print("static_loss {x}", x=static_loss)
-
   return static_loss
 
 
-def compute_dynamic_loss(P_adjusted, masks, R_unit, w_dynamic, delta=1):
+def compute_dynamic_loss(
+    P_adjusted: jnp.ndarray, masks: jnp.ndarray, R_unit: jnp.ndarray, w_dynamic: float, delta: int = 1):
+  """
+  Computes the dynamic loss for the given adjusted points and masks.
+
+  Parameters:
+  P_adjusted (jnp.ndarray): Adjusted points array of shape (N, 3).
+  masks (jnp.ndarray): Masks array of shape (N,), True indicating valid points.
+  R_unit (jnp.ndarray): Unit vector of camera ray of shape (N, 3).
+  w_dynamic (float): Weight for the dynamic loss.
+  delta (int): Shift value for edge padding. Default is 1.
+  """
   masks = masks.astype(jnp.float32).reshape(-1, 1)
   P_shift_plus = shift_with_edge_padding(
       P_adjusted.transpose(), -delta, axis=1
@@ -171,13 +169,24 @@ def compute_dynamic_loss(P_adjusted, masks, R_unit, w_dynamic, delta=1):
   valid_mask = masks * masks_shift_plus * masks_shift_minus
   delta2_Pi = P_shift_plus - 2 * P_adjusted + P_shift_minus
   a_i = jnp.nansum(delta2_Pi * R_unit, axis=1, keepdims=True)
-  # jax.debug.print("a_i {x}", x=a_i.flatten())
   a_i_masked = a_i * valid_mask
   dynamic_loss = jnp.nansum((a_i_masked) ** 2) * w_dynamic
   return dynamic_loss
 
 
-def compute_regularization_loss(d, ray_distances, masks, lambda_reg):
+def compute_regularization_loss(d: jnp.ndarray, ray_distances: np.ndarray, masks: np.ndarray, lambda_reg: float):
+  """
+  Computes the regularization loss for the given displacement and original ray distances.
+
+  Args:
+    d (jnp.ndarray): The displacement.
+    ray_distances (np.ndarray): The distances along the rays.
+    masks (np.ndarray): The masks indicating valid regions.
+    lambda_reg (float): The regularization coefficient.
+
+  Returns:
+    float: The computed regularization loss.
+  """
   masks = masks.astype(jnp.float32).reshape(-1)
   delta_d = d
   denom = delta_d + ray_distances + 1e-8
@@ -187,16 +196,33 @@ def compute_regularization_loss(d, ray_distances, masks, lambda_reg):
 
 
 def loss_fn_inner(
-    d,
-    P,
-    C,
-    masks,
-    motion_scores,
-    motion_threshold,
-    w_static,
-    w_dynamic,
-    lambda_reg,
+    d: jnp.ndarray,
+    P: np.ndarray,
+    C: np.ndarray,
+    masks: np.ndarray,
+    motion_scores: np.ndarray,
+    motion_threshold: float,
+    w_static: float,
+    w_dynamic: float,
+    lambda_reg: float,
 ):
+  """
+  Computes the total loss for the given parameters.
+
+  Args:
+    d (jnp.ndarray): Displacement vector.
+    P (np.ndarray): Points in the current frame.
+    C (np.ndarray): Points in the previous frame.
+    masks (np.ndarray): Binary masks indicating valid points.
+    motion_scores (np.ndarray): Motion scores for each point.
+    motion_threshold (float): Threshold for motion scores.
+    w_static (float): Weight for static loss.
+    w_dynamic (float): Weight for dynamic loss.
+    lambda_reg (float): Regularization parameter.
+
+  Returns:
+    jnp.ndarray: The computed total loss.
+  """
   masks_float = masks.astype(jnp.float32).reshape(-1)
   R = P - C
   R_norm = jnp.linalg.norm(R, axis=1, keepdims=True) + 1e-8
@@ -207,32 +233,28 @@ def loss_fn_inner(
   motion_percentile = jnp.nanpercentile(valid_motion_scores, 90)
   sigmoid = lambda x: 1 / (1 + jnp.exp(-x))
   w_i = sigmoid(motion_percentile - motion_threshold)
-  static_loss = compute_static_loss_pairwise(P_adjusted, masks, w_static)
+  static_loss = compute_static_loss(P_adjusted, masks, w_static)
   dynamic_loss = (
       compute_dynamic_loss(P_adjusted, masks, R_unit, w_dynamic)
       + compute_dynamic_loss(P_adjusted, masks, R_unit, w_dynamic, delta=3)
       + compute_dynamic_loss(P_adjusted, masks, R_unit, w_dynamic, delta=5)
   )
   reg_loss = compute_regularization_loss(d, ray_distances, masks, lambda_reg)
-  # jax.debug.print("static_loss {x}", x=static_loss)
-  # jax.debug.print("dynamic_loss {x}", x=dynamic_loss)
-  # jax.debug.print("reg_loss {x}", x=reg_loss)
   total_loss = (1 - w_i) * static_loss + w_i * dynamic_loss + reg_loss
-  # total_loss = static_loss
   return total_loss
 
 
 def optimize_single_track_jax_adam(
-    P,
-    C,
-    masks,
-    motion_scores,
-    motion_threshold=10,
-    lambda_reg=1.0,
-    w_static=1.0,
-    w_dynamic=1.0,
-    num_steps=1000,
-    learning_rate=0.001,
+    P: np.ndarray,
+    C: np.ndarray,
+    masks: np.ndarray,
+    motion_scores: np.ndarray,
+    motion_threshold: float,
+    lambda_reg: float,
+    w_static: float,
+    w_dynamic: float,
+    num_steps: int,
+    learning_rate: float,
 ):
   N = P.shape[0]
   d_init = jnp.zeros(N)
@@ -279,7 +301,15 @@ def adjust_positions(P, C, d):
   return P_adjusted
 
 
-def optimize_tracks(track3d):
+def optimize_tracks(track3d: utils.Track3d):
+  """
+  Optimize the 3D tracks of points with Adam optimizer.
+  Args:
+    track3d (Track3D): An object containing 3D tracks, camera information, visibility masks, and color values.
+  Returns:
+    Track3D: A new Track3D object with optimized 3D tracks, updated visibility masks, and color values.
+  """
+
   points = track3d.track3d  # Batch, N, 3
   cameras = np.array([c.get_c2w()[:3, 3] for c in track3d.cameras])[
       None
@@ -300,12 +330,16 @@ def optimize_tracks(track3d):
   motion = utils.get_scene_motion_2d_displacement(track3d)
   points = points * masks  # Shape (Batch, N, 3)
 
+  # Optimization hyperparameters.
   w_static = 100.0
   w_dynamic = 100.0
   lambda_reg = 0.1
+  motion_threshold = 20
   optimal_batch_size = (
       10000  # Adjust this value according to your memory limits
   )
+  num_steps = 100
+  learning_rate = 0.05
 
   num_samples = points.shape[0]
   num_batches = int(np.ceil(num_samples / optimal_batch_size))
@@ -315,7 +349,7 @@ def optimize_tracks(track3d):
       optimize_single_track_jax_adam,
       in_axes=(0, 0, 0, 0, None, None, None, None, None, None),
   )
-  for i in tqdm.tqdm(range(num_batches)):
+  for i in tqdm.tqdm(range(num_batches), desc='optimizing tracks'):
     start_idx = i * optimal_batch_size
     end_idx = min((i + 1) * optimal_batch_size, num_samples)
 
@@ -323,18 +357,17 @@ def optimize_tracks(track3d):
     batch_cameras = cameras[start_idx:end_idx]
     batch_masks = masks[start_idx:end_idx]
     batch_motion = motion[start_idx:end_idx]
-
     d_batch = optimize_single_track_jax_vmap(
         batch_points,
         batch_cameras,
         batch_masks,
         batch_motion,
-        20,
+        motion_threshold,
         lambda_reg,
         w_static,
         w_dynamic,
-        100,
-        0.05,
+        num_steps,
+        learning_rate,
     )
     results.append(d_batch)
 
@@ -675,74 +708,74 @@ def plot_depth_prism(depthmaps):
   return colored_d
 
 def draw_camera_pose(M, ax, al=1, fov=60, aspect=1.0, near=0.0, far=0.1):
-    """
-    Draws the camera pose with axes and frustum in the 3D plot.
+  """
+  Draws the camera pose with axes and frustum in the 3D plot.
 
-    Parameters:
-    - M: (4x4 array) The camera's extrinsic matrix.
-    - ax: The matplotlib 3D axis to draw on.
-    - al: (float) The length scaling factor for the axes.
-    - orig_color: (str) The color of the camera origin point.
-    - fov: (float) Field of view in degrees.
-    - aspect: (float) Aspect ratio of the camera (width / height).
-    - near: (float) Near clipping plane distance.
-    - far: (float) Far clipping plane distance.
-    """
-    camera_orig = M[:3, 3]
-    rot_mat = M[:3, :3]
-    # Draw frustum
-    fov_rad = np.deg2rad(fov / 2)
-    h_near = 2 * np.tan(fov_rad) * near
-    w_near = h_near * aspect
-    h_far = 2 * np.tan(fov_rad) * far
-    w_far = h_far * aspect
+  Parameters:
+  - M: (4x4 array) The camera's extrinsic matrix.
+  - ax: The matplotlib 3D axis to draw on.
+  - al: (float) The length scaling factor for the axes.
+  - orig_color: (str) The color of the camera origin point.
+  - fov: (float) Field of view in degrees.
+  - aspect: (float) Aspect ratio of the camera (width / height).
+  - near: (float) Near clipping plane distance.
+  - far: (float) Far clipping plane distance.
+  """
+  camera_orig = M[:3, 3]
+  rot_mat = M[:3, :3]
+  # Draw frustum
+  fov_rad = np.deg2rad(fov / 2)
+  h_near = 2 * np.tan(fov_rad) * near
+  w_near = h_near * aspect
+  h_far = 2 * np.tan(fov_rad) * far
+  w_far = h_far * aspect
 
-    # Define frustum corners in camera space
-    near_corners = np.array([
-        [ w_near / 2,  h_near / 2, near],
-        [-w_near / 2,  h_near / 2, near],
-        [-w_near / 2, -h_near / 2, near],
-        [ w_near / 2, -h_near / 2, near],
-    ])
+  # Define frustum corners in camera space
+  near_corners = np.array([
+      [ w_near / 2,  h_near / 2, near],
+      [-w_near / 2,  h_near / 2, near],
+      [-w_near / 2, -h_near / 2, near],
+      [ w_near / 2, -h_near / 2, near],
+  ])
 
-    far_corners = np.array([
-        [ w_far / 2,  h_far / 2, far],
-        [-w_far / 2,  h_far / 2, far],
-        [-w_far / 2, -h_far / 2, far],
-        [ w_far / 2, -h_far / 2, far],
-    ])
+  far_corners = np.array([
+      [ w_far / 2,  h_far / 2, far],
+      [-w_far / 2,  h_far / 2, far],
+      [-w_far / 2, -h_far / 2, far],
+      [ w_far / 2, -h_far / 2, far],
+  ])
 
-    # Combine near and far corners
-    frustum_corners = np.vstack((near_corners, far_corners))
+  # Combine near and far corners
+  frustum_corners = np.vstack((near_corners, far_corners))
 
-    # Transform corners to world space
-    frustum_corners_world = (rot_mat @ frustum_corners.T).T + camera_orig
+  # Transform corners to world space
+  frustum_corners_world = (rot_mat @ frustum_corners.T).T + camera_orig
 
-    # Define lines to draw the frustum edges
-    frustum_lines = [
-        # Lines from camera origin to near corners
-        [camera_orig, frustum_corners_world[i]] for i in range(4)
-    ] + [
-        # Lines from camera origin to far corners
-        [camera_orig, frustum_corners_world[i + 4]] for i in range(4)
-    ] + [
-        # Edges of the near plane
-        [frustum_corners_world[i], frustum_corners_world[(i + 1) % 4]] for i in range(4)
-    ] + [
-        # Edges of the far plane
-        [frustum_corners_world[i + 4], frustum_corners_world[((i + 1) % 4) + 4]] for i in range(4)
-    ] + [
-        # Edges connecting near and far planes
-        [frustum_corners_world[i], frustum_corners_world[i + 4]] for i in range(4)
-    ]
+  # Define lines to draw the frustum edges
+  frustum_lines = [
+      # Lines from camera origin to near corners
+      [camera_orig, frustum_corners_world[i]] for i in range(4)
+  ] + [
+      # Lines from camera origin to far corners
+      [camera_orig, frustum_corners_world[i + 4]] for i in range(4)
+  ] + [
+      # Edges of the near plane
+      [frustum_corners_world[i], frustum_corners_world[(i + 1) % 4]] for i in range(4)
+  ] + [
+      # Edges of the far plane
+      [frustum_corners_world[i + 4], frustum_corners_world[((i + 1) % 4) + 4]] for i in range(4)
+  ] + [
+      # Edges connecting near and far planes
+      [frustum_corners_world[i], frustum_corners_world[i + 4]] for i in range(4)
+  ]
 
-    # Convert to numpy array and adjust axes for plotting
-    frustum_lines = np.array(frustum_lines)
-    frustum_lines = frustum_lines[:, :, [0, 2, 1]]  # Swap y and z axes
+  # Convert to numpy array and adjust axes for plotting
+  frustum_lines = np.array(frustum_lines)
+  frustum_lines = frustum_lines[:, :, [0, 2, 1]]  # Swap y and z axes
 
-    # Plot frustum using Line3DCollection
-    frustum_collection = Line3DCollection(frustum_lines, colors=[0.0, 0.0, 0.7], linewidths=1)
-    ax.add_collection3d(frustum_collection)
+  # Plot frustum using Line3DCollection
+  frustum_collection = Line3DCollection(frustum_lines, colors=[0.0, 0.0, 0.7], linewidths=1)
+  ax.add_collection3d(frustum_collection)
 
 
 def world_points(camera, depth, rgb, stride=1):
@@ -764,144 +797,144 @@ def world_points(camera, depth, rgb, stride=1):
 
 
 def plot_3d_tracks_with_camera(track3d: utils.Track3d, depth, rgb, axes=None, tracks_leave_trace=32):
-    """Visualize 3D point trajectories with camera trajectory."""
-    points = track3d.track3d.transpose(1,0,2)
-    visibles = track3d.visible_list.transpose(1,0)
-    M_list = [c.get_c2w()[:3] for c in track3d.cameras]
+  """Visualize 3D point trajectories with camera trajectory."""
+  points = track3d.track3d.transpose(1,0,2)
+  visibles = track3d.visible_list.transpose(1,0)
+  M_list = [c.get_c2w()[:3] for c in track3d.cameras]
 
-    num_frames, num_points = points.shape[0:2]
-    points = points[..., [0,2,1]]
+  num_frames, num_points = points.shape[0:2]
+  points = points[..., [0,2,1]]
 
-    # Colormap for points
-    point_color_map = matplotlib.colormaps.get_cmap('hsv')
-    point_cmap_norm = matplotlib.colors.Normalize(vmin=0, vmax=num_points - 1)
+  # Colormap for points
+  point_color_map = matplotlib.colormaps.get_cmap('hsv')
+  point_cmap_norm = matplotlib.colors.Normalize(vmin=0, vmax=num_points - 1)
 
-    # Colormap for camera trajectory
-    camera_color_map = matplotlib.colormaps.get_cmap('Greys')
+  # Colormap for camera trajectory
+  camera_color_map = matplotlib.colormaps.get_cmap('Greys')
 
-    if axes and 'x' in axes:
-      x_min, x_max = axes['x']
-    else:
-      x_min, x_max = np.nanpercentile(points[visibles, 0], 5), np.nanpercentile(points[visibles, 0], 95)
+  if axes and 'x' in axes:
+    x_min, x_max = axes['x']
+  else:
+    x_min, x_max = np.nanpercentile(points[visibles, 0], 5), np.nanpercentile(points[visibles, 0], 95)
 
-    if axes and 'y' in axes:
-      y_min, y_max = axes['y']
-    else:
-      y_min, y_max = np.nanpercentile(points[visibles, 1], 5), np.nanpercentile(points[visibles, 1], 95)
+  if axes and 'y' in axes:
+    y_min, y_max = axes['y']
+  else:
+    y_min, y_max = np.nanpercentile(points[visibles, 1], 5), np.nanpercentile(points[visibles, 1], 95)
 
-    if axes and 'z' in axes:
-      z_min, z_max = axes['z']
-    else:
-      z_min, z_max = np.nanpercentile(points[visibles, 2], 5), np.nanpercentile(points[visibles, 2], 95)
+  if axes and 'z' in axes:
+    z_min, z_max = axes['z']
+  else:
+    z_min, z_max = np.nanpercentile(points[visibles, 2], 5), np.nanpercentile(points[visibles, 2], 95)
 
-    # Adjust axis limits
-    interval = np.max([x_max - x_min, y_max - y_min, z_max - z_min]) * 1.11
-    # print(interval)
-    x_mid = (x_min + x_max) / 2
-    y_mid = (y_min + y_max) / 2
-    z_mid = (z_min + z_max) / 2
-    x_min, x_max = x_mid - interval / 2, x_mid + interval / 2
-    y_min, y_max = y_mid - interval / 2, y_mid + interval / 2
-    z_min, z_max = z_mid - interval / 2, z_mid + interval / 2
+  # Adjust axis limits
+  interval = np.max([x_max - x_min, y_max - y_min, z_max - z_min]) * 1.11
+  # print(interval)
+  x_mid = (x_min + x_max) / 2
+  y_mid = (y_min + y_max) / 2
+  z_mid = (z_min + z_max) / 2
+  x_min, x_max = x_mid - interval / 2, x_mid + interval / 2
+  y_min, y_max = y_mid - interval / 2, y_mid + interval / 2
+  z_min, z_max = z_mid - interval / 2, z_mid + interval / 2
 
-    print(f'Axes: [{x_min}, {x_max}], [{y_min}, {y_max}], [{z_min}, {z_max}]')
+  # print(f'Axes: [{x_min}, {x_max}], [{y_min}, {y_max}], [{z_min}, {z_max}]')
 
-    # Precompute camera positions and segments
+  # Precompute camera positions and segments
+  if M_list is not None:
+    camera_positions = np.array([M[:3, 3] for M in M_list])  # Shape: (num_frames, 3)
+    camera_positions = camera_positions[:, [0, 2, 1]]
+    camera_segments = np.stack([camera_positions[:-1], camera_positions[1:]], axis=1)  # Shape: (num_frames - 1, 2, 3)
+
+  frames = []
+  for t in tqdm.tqdm(range(num_frames), desc='plotting tracks'):
+    fig = Figure(figsize=(5.12, 5.12), dpi=100)
+    canvas = FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111, projection='3d', computed_zorder=False)
+
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
+    ax.set_zlim([z_min, z_max])
+
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_zticklabels([])
+
+    ax.invert_zaxis()
+    ax.view_init()
+
+    # Plot background points
+    background_points, valid, colors = world_points(
+      track3d.cameras[t], depth[t], rgb[t], stride=2)
+    background = ax.scatter(
+      background_points[..., 0],
+      background_points[..., 1],
+      background_points[..., 2],
+      c=colors, s=16, depthshade=False, edgecolors='none')
+
+    # Plot camera trajectory up to frame t
     if M_list is not None:
-        camera_positions = np.array([M[:3, 3] for M in M_list])  # Shape: (num_frames, 3)
-        camera_positions = camera_positions[:, [0, 2, 1]]
-        camera_segments = np.stack([camera_positions[:-1], camera_positions[1:]], axis=1)  # Shape: (num_frames - 1, 2, 3)
+      if False and t > 0:
+        segments_to_plot = camera_segments[:t]
+        camera_cmap_norm = matplotlib.colors.Normalize(vmin=-1, vmax=t)
+        camera_colors = camera_color_map(camera_cmap_norm(np.arange(t-1)))
+        colors_to_plot = camera_colors[:t]
+        camera_trajectory = Line3DCollection(segments_to_plot, colors=colors_to_plot, linewidths=1)
+        ax.add_collection3d(camera_trajectory)
 
-    frames = []
-    for t in tqdm.tqdm(range(num_frames)):
-        fig = Figure(figsize=(5.12, 5.12), dpi=100)
-        canvas = FigureCanvasAgg(fig)
-        ax = fig.add_subplot(111, projection='3d', computed_zorder=False)
+      path_pos = camera_positions[0:np.min((t+20, num_frames))]
+      ax.plot(path_pos[..., 0], path_pos[..., 1], path_pos[..., 2],
+              color=[0.0, 0.0, 0.7],
+              linestyle='dashed')
+      # Plot current camera pose
+      draw_camera_pose(M_list[t], ax, al=interval/10, far=interval/10)
 
-        ax.set_xlim([x_min, x_max])
-        ax.set_ylim([y_min, y_max])
-        ax.set_zlim([z_min, z_max])
+    # Compute mask for visible points
+    mask = visibles[t, :]
+    indices = np.where(mask)[0]
 
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        ax.set_zticklabels([])
+    if indices.size > 0:
+      start_t = max(0, t - tracks_leave_trace)
 
-        ax.invert_zaxis()
-        ax.view_init()
+      # Extract lines in a vectorized manner
+      lines = points[start_t:t+1, indices]  # Shape: (line_length, num_visible_points, 3)
+      lines = np.transpose(lines, (1, 0, 2))  # Shape: (num_visible_points, line_length, 3)
 
-        # Plot background points
-        background_points, valid, colors = world_points(
-            track3d.cameras[t], depth[t], rgb[t], stride=2)
-        background = ax.scatter(
-            background_points[..., 0],
-            background_points[..., 1],
-            background_points[..., 2],
-            c=colors, s=16, depthshade=False, edgecolors='none')
+      # Prepare colors
+      colors = point_color_map(point_cmap_norm(indices))
 
-        # Plot camera trajectory up to frame t
-        if M_list is not None:
-            if False and t > 0:
-                segments_to_plot = camera_segments[:t]
-                camera_cmap_norm = matplotlib.colors.Normalize(vmin=-1, vmax=t)
-                camera_colors = camera_color_map(camera_cmap_norm(np.arange(t-1)))
-                colors_to_plot = camera_colors[:t]
-                camera_trajectory = Line3DCollection(segments_to_plot, colors=colors_to_plot, linewidths=1)
-                ax.add_collection3d(camera_trajectory)
+      # Plot lines using Line3DCollection
+      line_collection = Line3DCollection(lines, colors=colors, linewidths=1)
+      ax.add_collection3d(line_collection)
 
-            path_pos = camera_positions[0:np.min((t+20, num_frames))]
-            ax.plot(path_pos[..., 0], path_pos[..., 1], path_pos[..., 2],
-                    color=[0.0, 0.0, 0.7],
-                    linestyle='dashed')
-            # Plot current camera pose
-            draw_camera_pose(M_list[t], ax, al=interval/10, far=interval/10)
+      # Plot scatter points
+      end_points = points[t, indices]
+      ax.scatter(end_points[:, 0], end_points[:, 1], end_points[:, 2], c=colors, s=3)
 
-        # Compute mask for visible points
-        mask = visibles[t, :]
-        indices = np.where(mask)[0]
+    fig.subplots_adjust(left=-0.05, right=1.05, top=1.05, bottom=-0.05)
+    # Draw including background
+    fig.canvas.draw()
+    with_background = np.array(canvas.buffer_rgba(), dtype=np.float32) / 255.
+    background.set_visible(False)
+    fig.canvas.draw()
+    without_background = np.array(canvas.buffer_rgba(), dtype=np.float32) / 255.
+    k = .4
+    blend = with_background * k + without_background * (1-k)
+    frames.append(blend)
+    plt.close(fig)  # Close the figure to free memory
 
-        if indices.size > 0:
-            start_t = max(0, t - tracks_leave_trace)
-
-            # Extract lines in a vectorized manner
-            lines = points[start_t:t+1, indices]  # Shape: (line_length, num_visible_points, 3)
-            lines = np.transpose(lines, (1, 0, 2))  # Shape: (num_visible_points, line_length, 3)
-
-            # Prepare colors
-            colors = point_color_map(point_cmap_norm(indices))
-
-            # Plot lines using Line3DCollection
-            line_collection = Line3DCollection(lines, colors=colors, linewidths=1)
-            ax.add_collection3d(line_collection)
-
-            # Plot scatter points
-            end_points = points[t, indices]
-            ax.scatter(end_points[:, 0], end_points[:, 1], end_points[:, 2], c=colors, s=3)
-
-        fig.subplots_adjust(left=-0.05, right=1.05, top=1.05, bottom=-0.05)
-        # Draw including background
-        fig.canvas.draw()
-        with_background = np.array(canvas.buffer_rgba(), dtype=np.float32) / 255.
-        background.set_visible(False)
-        fig.canvas.draw()
-        without_background = np.array(canvas.buffer_rgba(), dtype=np.float32) / 255.
-        k = .4
-        blend = with_background * k + without_background * (1-k)
-        frames.append(blend)
-        plt.close(fig)  # Close the figure to free memory
-
-    return np.array(frames)[..., :3]
+  return np.array(frames)[..., :3]
 
 
 
-def optimize_track_main(video_id: str, clip_id: int, save_root: str):
-  hfov = 60
+def optimize_track_main(video_id: str, clip_id: int, save_root: str, hfov: float):
+  # load raw tracks
   vid = f'{video_id}-clip{clip_id}'
   with open(
       osp.join(save_root, vid, vid + '-tapir_remove_drift_tracks.pkl'),
-      # osp.join(save_root, vid, vid + '-tapir_remove_redundant_query.pkl'),
       'rb',
   ) as f:
     track2d = pickle.load(f)
+  # load depth
   input_dict = load_rgbd_cam_from_pkl(vid, save_root, hfov)
   media.write_video(
     osp.join(save_root, vid, vid + '-raw_depth.mp4'),
@@ -965,10 +998,11 @@ def main():
   parser.add_argument('--videoid', help='video id', type=str, default='')
   parser.add_argument('--clipid', help='clip id', type=int, default=0)
   parser.add_argument('--output_folder', help='output folder', type=str, default='')
+  parser.add_argument('--hfov', help='camera field of view', type=float, default=60)
 
   args = parser.parse_args()
 
-  optimize_track_main(args.videoid, args.clipid, args.output_folder)
+  optimize_track_main(args.videoid, args.clipid, args.output_folder, args.hfov)
 
 if __name__ == '__main__':
   main()

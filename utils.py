@@ -292,7 +292,7 @@ def get_scene_motion_2d_displacement(
   all_points = track3d.track3d  # Shape: (npt, nframe, 3)
   npt, nframe, _ = all_points.shape
   displacement = np.zeros_like(track3d.visible_list, dtype=np.float32)
-  for t in tqdm.tqdm(range(nframe)):
+  for t in tqdm.tqdm(range(nframe), desc='Computing 2D displacement'):
     s_start = max(0, t - tracks_leave_trace)
     s_end = t + 1  # Include current frame
     s_list = np.arange(s_start, s_end)  # Shape: (L,)
