@@ -17,6 +17,13 @@ class CameraAZ:
       from_json=None,
       from_jaxcam=None,
   ):
+    """
+    Initialize the object with either JSON data or JAX camera data.
+
+    Parameters:
+    from_json (dict, optional): A dictionary containing 'extr' and 'intr_normalized' keys.
+    from_jaxcam (jaxcam, optional): Initialize from JAX camera.
+    """
     if from_json is not None:
       self.extr = from_json['extr']
       self.intr_normalized = from_json['intr_normalized']
@@ -54,15 +61,33 @@ class CameraAZ:
     }
 
   def get_c2w(self):
+    """
+    Get the camera-to-world transformation matrix.
+    Returns:
+      numpy.ndarray: A 4x4 camera-to-world transformation matrix.
+    """
     w2c = np.concatenate((self.extr, np.array([[0, 0, 0, 1]])), axis=0)
     c2w = np.linalg.inv(w2c)
     return c2w
 
   def get_hfov_deg(self):
+    """
+    Get the horizontal field of view (HFOV) in degrees.
+    """
     return math.degrees(2 * np.arctan(0.5 / self.intr_normalized['fx']))
 
 
-  def get_intri_matrix(self, imh, imw):
+  def get_intri_matrix(self, imh: int, imw: int):
+    """
+    Get the intrinsic matrix
+
+    Parameters:
+    imh (int): The height of the image.
+    imw (int): The width of the image.
+
+    Returns:
+    numpy.ndarray: A 3x3 intrinsic matrix.
+    """
     return np.array([
         [self.intr_normalized['fx'] * imw, 0, self.intr_normalized['cx'] * imw],
         [0, self.intr_normalized['fy'] * imh, self.intr_normalized['cy'] * imh],
@@ -261,6 +286,16 @@ class Track3d:
     }
 
   def get_new_track(self, track_mask=None, percentage=None | float):
+    """
+    Generate a new track by applying a mask or a random selection based on a given percentage.
+
+    Parameters:
+    track_mask (numpy.ndarray, optional): A boolean mask array to select specific tracks. If None, a random mask will be generated.
+    percentage (float, optional): The percentage of tracks to randomly select if track_mask is None. Should be a value between 0 and 1.
+
+    Returns:
+    new_track (object): A new instance of the track object with the selected tracks.
+    """
     if track_mask is None:
       track_mask = np.random.uniform(size=self.track3d.shape[0]) < percentage
     new_track = copy.deepcopy(self)
