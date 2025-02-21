@@ -16,6 +16,8 @@ import mediapy as media
 import numpy as np
 import tqdm
 from tqdm.contrib.concurrent import process_map
+import utils
+
 
 jax.config.update('jax_platform_name', 'cpu')
 
@@ -63,7 +65,7 @@ class EquiVideoLoader:
 
 
 def get_equirect_rectification_map(
-    equirect_hw: tuple[int, int], meta_fov: dict, stereo2rig: np.ndarray
+    equirect_hw: tuple[int, int], meta_fov: dict, rectified2rig: np.ndarray
 ):
   """Generate a UV map from rectified equirectangular image to raw equirectangular image.
 
@@ -85,8 +87,8 @@ def get_equirect_rectification_map(
       - 'end_tilt_in_degrees' : float
           The ending tilt angle (pitch) in degrees.
 
-  stereo2rig : np.ndarray
-      Calibration matrix from stereo frame to rig frame.
+  rectified2rig : np.ndarray
+      Calibration matrix from rectified frame to rig frame.
 
   Returns:
   --------
@@ -102,7 +104,7 @@ def get_equirect_rectification_map(
   ------
   - The function creates a UV map that can be used to transform an
   equirectangular image into a rectified equirectangular view based on the
-  stereo2rig calibration matrix.
+  rectified2rig calibration matrix.
   - The function uses numpy for calculations and meshgrid creation.
   - The resulting UV map (map_x, map_y) can be used for sampling pixels from the
   equirectangular image to create the perspective image.
@@ -124,7 +126,7 @@ def get_equirect_rectification_map(
   ray_z = np.cos(yv) * np.cos(xv)
 
   ray_stereo = np.stack([ray_x, ray_y, ray_z], axis=0)
-  ray_rig = np.einsum('ij,jhw->ihw', stereo2rig, ray_stereo)
+  ray_rig = np.einsum('ij,jhw->ihw', rectified2rig, ray_stereo)
 
   lon = np.arctan2(ray_rig[0], ray_rig[2])
   lat = np.arcsin(ray_rig[1])
@@ -168,7 +170,7 @@ def rectify_equirect_frame(image, meta_fov, corrections):
   left = image[:, : image.shape[1] // 2]
   right = image[:, image.shape[1] // 2 :]
   xx, yy = get_equirect_rectification_map(
-      left.shape[:2], meta_fov, corrections['stereo2rig_left']
+      left.shape[:2], meta_fov, corrections['rectified2rig_left']
   )
   rect_equirect_left = cv2.remap(
       left,
@@ -179,7 +181,7 @@ def rectify_equirect_frame(image, meta_fov, corrections):
       borderValue=(0, 0, 0),
   )
   xx, yy = get_equirect_rectification_map(
-      right.shape[:2], meta_fov, corrections['stereo2rig_right']
+      right.shape[:2], meta_fov, corrections['rectified2rig_right']
   )
   rect_equirect_right = cv2.remap(
       right,
@@ -502,7 +504,7 @@ def rectified_equirect_left_right_crop_to_perspective_wrapper(kwargs):
 
 
 
-def load_rectified_video(video_id: str, clip_id: int, output_dir: str, raw_video_folder: str):
+def load_rectified_video(vid: str, output_dir: str, raw_video_folder: str, npz_folder: str, output_hfov: float):
   """
   Load and rectify a video to perspective frames.
   This function performs the following steps:
@@ -513,29 +515,28 @@ def load_rectified_video(video_id: str, clip_id: int, output_dir: str, raw_video
   5. Crop the rectified equirectangular frames to perspective images.
   6. Save the rectified perspective frames.
   Args:
-    video_id (str): The ID of the video to be processed.
-    clip_id (int): The ID of the clip to be processed.
+    vid (str): The ID of the video to be processed.
     output_dir (str): The directory where the output videos will be saved.
     raw_video_folder (str): The folder containing the raw video files.
+    npz_folder (str): The folder containing the released npz file.
   """
-  vid = f'{video_id}-clip{clip_id}'
   os.makedirs(osp.join(output_dir, vid), exist_ok=True)
-  with open('release_test.json', 'r') as f:
-    metas = json.load(f)
-  meta_fov = metas[video_id][clip_id]['meta_fov']
-  corrections = {k: np.array(v) for k, v in metas[video_id][clip_id]['corrections'].items()}
+
+  dp = utils.load_dataset_npz(osp.join(npz_folder, f'{vid}.npz'))
+  meta_fov = dp['meta_fov']
+  corrections = {k: np.array(v) for k, v in dp['corrections'].items()}
   
   # Load video
-  timestamps = metas[video_id][clip_id]['timestamp']
-  equi_loader = EquiVideoLoader(video_id, raw_video_folder)
-  # equi_video = equi_loader.retrieve_frame_cv2(timestamps)
+  timestamps = dp['timestamps']
+  raw_video_id = vid.split('_')[0]
+  equi_loader = EquiVideoLoader(raw_video_id, raw_video_folder)
   equi_video = equi_loader.retrieve_frames_moviepy(timestamps)
   media.write_video(
     osp.join(output_dir, vid, f"{vid}-raw_equirect.mp4"),
     equi_video, 
     fps=30
   )
-  equi_video = media.read_video(osp.join(output_dir, vid, f"{vid}-raw_equirect.mp4"))
+#   equi_video = media.read_video(osp.join(output_dir, vid, f"{vid}-raw_equirect.mp4"))
 
   rectified_equi_video = process_map(
     rectify_equirect_frame_wrapper,
@@ -548,15 +549,15 @@ def load_rectified_video(video_id: str, clip_id: int, output_dir: str, raw_video
   )
   rectified_equi_video = np.stack(rectified_equi_video, axis=0)
   media.write_video(
-    osp.join(output_dir, f'{video_id}-clip{clip_id}', f"{video_id}-clip{clip_id}-rectified_equirect.mp4"),
+    osp.join(output_dir, f'{vid}', f"{vid}-rectified_equirect.mp4"),
     rectified_equi_video, 
     fps=30
   )
-  rectified_equi_video = media.read_video(osp.join(output_dir, f'{video_id}-clip{clip_id}', f"{video_id}-clip{clip_id}-rectified_equirect.mp4"))
+#   rectified_equi_video = media.read_video(osp.join(output_dir, f'{vid}', f"{vid}-rectified_equirect.mp4"))
   logging.info('Recropping from equirectangular')
   crop_flag = NewCropFlags()
   crop_flag.meta_fov = meta_fov
-  
+  crop_flag.output_hfov = output_hfov
   output = process_map(
     rectified_equirect_left_right_crop_to_perspective_wrapper,
     [
@@ -589,14 +590,15 @@ def load_rectified_video(video_id: str, clip_id: int, output_dir: str, raw_video
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--videoid', help='video id', type=str, default='')
-  parser.add_argument('--clipid', help='clip id', type=int, default=0)
+  parser.add_argument('--vid', help='video id, in the format of <raw-video-id>_<timestamp>', type=str)
+  parser.add_argument('--npz_folder', help='npz folder', type=str, default='stereo4d_dataset/npz')
   parser.add_argument('--raw_video_folder', help='raw video folder', type=str, default='stereo4d_dataset/raw')
-  parser.add_argument('--output_folder', help='output folder', type=str, default='')
+  parser.add_argument('--output_folder', help='output folder', type=str, default='stereo4d_dataset/processed')
+  parser.add_argument('--output_hfov', help='output horizontal fov', type=float, default=60)
 
   args = parser.parse_args()
 
-  load_rectified_video(args.videoid, args.clipid, args.output_folder, args.raw_video_folder)
+  load_rectified_video(args.vid, args.output_folder, args.raw_video_folder, args.npz_folder, args.hfov)
 
 if __name__ == '__main__':
   main()

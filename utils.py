@@ -513,3 +513,60 @@ def plot_3d_tracks_plt(
 
   disp = np.stack(disp, axis=0)
   return disp
+
+
+def load_dataset_npz(path):
+  """
+  Load released npz format
+  """
+  with open(path, 'rb') as f:
+    data_zip = np.load(f)
+    data = {}
+    for k in data_zip.keys():
+      data[k] = data_zip[k]
+  # --------------
+  # Rig calibration
+  # --------------
+  data['corrections'] = {
+    'rectified2rig_left': data['camera_rotation'][0].T,
+    'rectified2rig_right': data['camera_rotation'][1].T,
+  }
+  data.pop('camera_rotation')
+  # --------------
+  # Camera intrinsics
+  # --------------
+  data['meta_fov'] = {
+    'start_yaw_in_degrees': data['fov_bounds'][0],
+    'end_yaw_in_degrees': data['fov_bounds'][1],
+    'start_tilt_in_degrees': data['fov_bounds'][2],
+    'end_tilt_in_degrees': data['fov_bounds'][3],
+  }
+  data.pop('fov_bounds')
+  # --------------
+  # Camera poses
+  # --------------
+  c2w = data['cameras']  # (T, 3, 4)
+  R = c2w[:, :, :3]
+  t = c2w[:, :, 3:]
+
+  # Compute inverse: R^T and new translation
+  R_inv = np.transpose(R, (0, 2, 1))  # Transpose R
+  t_inv = -np.matmul(R_inv, t)
+  data['extrs_rectified'] = np.concatenate([R_inv, t_inv], axis=-1)
+  data.pop('cameras')
+  # --------------
+  # 3D tracks
+  # --------------
+  lengths = data['track_lengths']
+  shape = (len(lengths), len(data['timestamps']), 3)
+  tracks = np.full(shape, np.nan)
+  tracks[
+    np.repeat(np.arange(lengths.shape[0]), lengths),
+    data['track_indices'], :
+  ] = data['track_coordinates']
+  data['track3d'] = tracks
+  data.pop('track_lengths')
+  data.pop('track_indices')
+  data.pop('track_coordinates')
+  return data
+

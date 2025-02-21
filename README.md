@@ -41,7 +41,7 @@ video into a dynamic point cloud, which involves stereo disparity, and 2D tracks
 several filtering operations to ensure temporal consistent,
 high-quality reconstructions.
 
-
+# 🚧 This repository is WIP, please stand by. 🚧 
 
 <!-- omit in toc -->
 Table of Contents
@@ -99,9 +99,7 @@ The script runs the following steps:
 	•	`{videoid}-right_rectified.mp4` (right eye)
 ```bash
 JAX_PLATFORMS=cpu python rectify.py \
---videoid=CMwZrkhQ0ck \
---clipid=0 \
---output_folder=stereo4d_dataset
+--vid=CMwZrkhQ0ck_176810143
 ```
 Example output:
 
@@ -114,14 +112,12 @@ https://github.com/user-attachments/assets/c9f9f9ce-dcf8-4164-95e1-03d65235afb3
 https://github.com/user-attachments/assets/55976eb4-a579-4b6d-9d35-0f5b4583391e
 
 
+The released npz file already contains 3D tracks, if this is what you want, then you can skip the following steps and instead follow this example to visualize 3D tracks.
+
+[Notebook for visualization](./track_visualization.ipynb)
 
 
-
-
-
-
-
-
+# If you want to reproduce the 3D tracks, continue with the following steps.
 
 ### Step 3/6 Disparity from stereo matching
 The following script loads the rectified perspective videos, calculates the disparity, and saves the results to `flows_stereo.pkl`.
@@ -129,9 +125,7 @@ We used an internal version of RAFT when developing, here we use [SEA-RAFT](http
 We can integrate more advanced stereo methods as they become available.
 ```bash
 python inference_raft.py \
---videoid=CMwZrkhQ0ck \
---clipid=0 \
---output_folder=stereo4d_dataset
+--vid=CMwZrkhQ0ck_176810143
 ```
 
 
@@ -155,9 +149,7 @@ For every 10th frame, we uniformly initialize 128 x 128 query points on frames
 of resolution 512 x 512. We then prune redundant tracks that overlap on the same pixel. 
 ```bash
 python tracking.py \
---videoid=CMwZrkhQ0ck \
---clipid=0 \
---output_folder=stereo4d_dataset
+--vid=CMwZrkhQ0ck_176810143
 ```
 Example output:
 
@@ -172,9 +164,7 @@ We can integrate more advanced tracking methods as they become available.
 
 ```bash
 python segmentation.py \
---videoid=CMwZrkhQ0ck \
---clipid=0 \
---output_folder=stereo4d_dataset
+--vid=CMwZrkhQ0ck_176810143
 ```
 Example output:
 
@@ -197,9 +187,7 @@ avoiding abrupt depth changes frame by frame, we design an optimization process 
 
 ```bash
 python track_optimization.py \
---videoid=CMwZrkhQ0ck \
---clipid=0 \
---output_folder=stereo4d_dataset
+--vid=CMwZrkhQ0ck_176810143
 ```
 Example output:
 

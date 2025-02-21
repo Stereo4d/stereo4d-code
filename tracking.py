@@ -269,7 +269,7 @@ def plot_2d_tracks_plt(
   return disp
 
 
-def run_track(video_id: str, clip_id: int, save_root: str):
+def run_track(vid: str, save_root: str):
   """
   Run 2D track on a video clip and save the results.
 
@@ -284,7 +284,6 @@ def run_track(video_id: str, clip_id: int, save_root: str):
   8. Saves the tracking results and query points to a pickle file.
   """
   # Read the video.
-  vid = f'{video_id}-clip{clip_id}'
   video = media.read_video(osp.join(save_root, vid, f"{vid}-left_rectified.mp4"))
   # Initialize the TapirTracker
   tapir = TapirTracker()
@@ -324,8 +323,8 @@ def run_track(video_id: str, clip_id: int, save_root: str):
   media.write_video(
       osp.join(
           save_root,
-          f'{video_id}-clip{clip_id}',
-          f'{video_id}-clip{clip_id}-tapir_2d.mp4',
+          vid,
+          f'{vid}-tapir_2d.mp4',
       ),
       video_plot,
       fps=30,
@@ -335,8 +334,8 @@ def run_track(video_id: str, clip_id: int, save_root: str):
   with open(
       osp.join(
           save_root,
-          f'{video_id}-clip{clip_id}',
-          f'{video_id}-clip{clip_id}-tapir_2d.pkl',
+          vid,
+          f'{vid}-tapir_2d.pkl',
       ),
       'wb',
   ) as f:
@@ -346,13 +345,12 @@ def run_track(video_id: str, clip_id: int, save_root: str):
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--videoid', help='video id', type=str, default='')
-  parser.add_argument('--clipid', help='clip id', type=int, default=0)
-  parser.add_argument('--output_folder', help='output folder', type=str, default='')
+  parser.add_argument('--vid', help='video id, in the format of <raw-video-id>_<timestamp>', type=str)
+  parser.add_argument('--output_folder', help='output folder', type=str, default='stereo4d_dataset/processed')
 
   args = parser.parse_args()
 
-  run_track(args.videoid, args.clipid, args.output_folder)
+  run_track(args.vid, args.output_folder)
 
 if __name__ == '__main__':
   main()

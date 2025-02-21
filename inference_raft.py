@@ -69,7 +69,7 @@ def raft_fn(left, right, args, model):
 
 @torch.no_grad()
 def inference_stereo_depth(model, args, device=torch.device('cuda')):
-  vid = f"{args.videoid}-clip{args.clipid}"
+  vid = args.vid
   video1 = media.read_video(osp.join(args.output_folder, vid, vid + '-left_rectified.mp4'))
   video2 = media.read_video(osp.join(args.output_folder, vid, vid + '-right_rectified.mp4'))
   assert len(video1) == len(video2)
@@ -99,9 +99,8 @@ def main():
   parser.add_argument('--path', help='checkpoint path', type=str, default=None)
   parser.add_argument('--url', help='checkpoint url', type=str, default='MemorySlices/Tartan-C-T-TSKH-spring540x960-M')
   parser.add_argument('--device', help='inference device', type=str, default='cpu')
-  parser.add_argument('--videoid', help='video id', type=str, default='')
-  parser.add_argument('--clipid', help='clip id', type=int, default=0)
-  parser.add_argument('--output_folder', help='output folder', type=str, default='')
+  parser.add_argument('--vid', help='video id, in the format of <raw-video-id>_<timestamp>', type=str)
+  parser.add_argument('--output_folder', help='output folder', type=str, default='stereo4d_dataset/processed')
 
   args = parse_args(parser)
   if args.path is None and args.url is None:

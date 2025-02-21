@@ -21,8 +21,8 @@ from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 import matplotlib.pyplot as plt
 import json
-import utils
 from typing import List, Optional
+import utils
 
 
   
@@ -413,21 +413,14 @@ def gradient_check_mask_relative(depth_map, threshold):
 
 
 
-def load_rgbd_cam_from_pkl(vid, root_dir, hfov=120, new_imw=1, new_imh=1):
-  """load rgb, depth, and camera from webvis folder"""
+def load_rgbd_cam_from_pkl(vid: str, root_dir: str, npz_folder: str, hfov: float, new_imw=1, new_imh=1):
+  """load rgb, depth, and camera"""
   input_dict = {'left': {'camera': [], 'depth': [], 'video': []}}
   # Load camera
-  # cam_pkl = osp.join(root_dir, vid, vid + '-left_camera_c2w.pkl')
-  # with open(cam_pkl, 'rb') as f:
-  #   cameras = pickle.load(f)
-  with open('release_test.json', 'r') as f:
-    metas = json.load(f)
-  video_id, clip_id = vid.split('-clip')
-  clip_id = int(clip_id)
-  corrections = {k: np.array(v) for k, v in metas[video_id][clip_id]['corrections'].items()}
-  extrs = np.array(metas[video_id][clip_id]['left']['extr'])
-  extrs_corrected = np.matmul(corrections['stereo2rig_left'].T, extrs)
-  nfr = len(extrs_corrected)
+  dp = utils.load_dataset_npz(osp.join(npz_folder, f'{vid}.npz'))
+  extrs_rectified = dp['extrs_rectified']
+
+  nfr = len(extrs_rectified)
   input_dict['nfr'] = nfr
   for fid in range(nfr):
     intr_normalized = {
@@ -443,7 +436,7 @@ def load_rgbd_cam_from_pkl(vid, root_dir, hfov=120, new_imw=1, new_imh=1):
     input_dict['left']['camera'].append(
         utils.CameraAZ(
             from_json={
-                'extr': extrs_corrected[fid][:3, :],
+                'extr': extrs_rectified[fid][:3, :],
                 'intr_normalized': intr_normalized,
             }
         )
@@ -926,16 +919,15 @@ def plot_3d_tracks_with_camera(track3d: utils.Track3d, depth, rgb, axes=None, tr
 
 
 
-def optimize_track_main(video_id: str, clip_id: int, save_root: str, hfov: float):
+def optimize_track_main(vid: str, save_root: str, npz_folder: str, hfov: float):
   # load raw tracks
-  vid = f'{video_id}-clip{clip_id}'
   with open(
       osp.join(save_root, vid, vid + '-tapir_remove_drift_tracks.pkl'),
       'rb',
   ) as f:
     track2d = pickle.load(f)
   # load depth
-  input_dict = load_rgbd_cam_from_pkl(vid, save_root, hfov)
+  input_dict = load_rgbd_cam_from_pkl(vid, save_root, npz_folder, hfov)
   media.write_video(
     osp.join(save_root, vid, vid + '-raw_depth.mp4'),
     plot_depth_prism(input_dict['left']['depth']),
@@ -995,14 +987,14 @@ def optimize_track_main(video_id: str, clip_id: int, save_root: str, hfov: float
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--videoid', help='video id', type=str, default='')
-  parser.add_argument('--clipid', help='clip id', type=int, default=0)
-  parser.add_argument('--output_folder', help='output folder', type=str, default='')
+  parser.add_argument('--vid', help='video id, in the format of <raw-video-id>_<timestamp>', type=str)
+  parser.add_argument('--npz_folder', help='npz folder', type=str, default='stereo4d_dataset/npz')
+  parser.add_argument('--output_folder', help='output folder', type=str, default='stereo4d_dataset/processed')
   parser.add_argument('--hfov', help='camera field of view', type=float, default=60)
 
   args = parser.parse_args()
 
-  optimize_track_main(args.videoid, args.clipid, args.output_folder, args.hfov)
+  optimize_track_main(args.vid, args.output_folder, args.npz_folder, args.hfov)
 
 if __name__ == '__main__':
   main()
