@@ -519,12 +519,16 @@ def load_rectified_video(vid: str, output_dir: str, raw_video_folder: str, npz_f
     output_dir (str): The directory where the output videos will be saved.
     raw_video_folder (str): The folder containing the raw video files.
     npz_folder (str): The folder containing the released npz file.
+    output_hfov (float): The field of view of output perspective videos.
   """
   os.makedirs(osp.join(output_dir, vid), exist_ok=True)
 
   dp = utils.load_dataset_npz(osp.join(npz_folder, f'{vid}.npz'))
   meta_fov = dp['meta_fov']
-  corrections = {k: np.array(v) for k, v in dp['corrections'].items()}
+  corrections = {
+    'rectified2rig_left': dp['rectified2rig'][0],
+    'rectified2rig_right': dp['rectified2rig'][1],
+  }
   
   # Load video
   timestamps = dp['timestamps']
@@ -536,7 +540,6 @@ def load_rectified_video(vid: str, output_dir: str, raw_video_folder: str, npz_f
     equi_video, 
     fps=30
   )
-#   equi_video = media.read_video(osp.join(output_dir, vid, f"{vid}-raw_equirect.mp4"))
 
   rectified_equi_video = process_map(
     rectify_equirect_frame_wrapper,
@@ -553,7 +556,6 @@ def load_rectified_video(vid: str, output_dir: str, raw_video_folder: str, npz_f
     rectified_equi_video, 
     fps=30
   )
-#   rectified_equi_video = media.read_video(osp.join(output_dir, f'{vid}', f"{vid}-rectified_equirect.mp4"))
   logging.info('Recropping from equirectangular')
   crop_flag = NewCropFlags()
   crop_flag.meta_fov = meta_fov
@@ -598,7 +600,7 @@ def main():
 
   args = parser.parse_args()
 
-  load_rectified_video(args.vid, args.output_folder, args.raw_video_folder, args.npz_folder, args.hfov)
+  load_rectified_video(args.vid, args.output_folder, args.raw_video_folder, args.npz_folder, args.output_hfov)
 
 if __name__ == '__main__':
   main()

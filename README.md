@@ -41,6 +41,10 @@ video into a dynamic point cloud, which involves stereo disparity, and 2D tracks
 several filtering operations to ensure temporal consistent,
 high-quality reconstructions.
 
+<em>This is not an officially supported Google product.</em>
+
+
+
 # 🚧 This repository is WIP, please stand by. 🚧 
 
 <!-- omit in toc -->
@@ -99,7 +103,7 @@ The script runs the following steps:
 	•	`{videoid}-right_rectified.mp4` (right eye)
 ```bash
 JAX_PLATFORMS=cpu python rectify.py \
---vid=CMwZrkhQ0ck_176810143
+--vid=CMwZrkhQ0ck_130030030
 ```
 Example output:
 
@@ -125,7 +129,7 @@ We used an internal version of RAFT when developing, here we use [SEA-RAFT](http
 We can integrate more advanced stereo methods as they become available.
 ```bash
 python inference_raft.py \
---vid=CMwZrkhQ0ck_176810143
+--vid=CMwZrkhQ0ck_130030030
 ```
 
 
@@ -149,7 +153,7 @@ For every 10th frame, we uniformly initialize 128 x 128 query points on frames
 of resolution 512 x 512. We then prune redundant tracks that overlap on the same pixel. 
 ```bash
 python tracking.py \
---vid=CMwZrkhQ0ck_176810143
+--vid=CMwZrkhQ0ck_130030030
 ```
 Example output:
 
@@ -164,7 +168,7 @@ We can integrate more advanced tracking methods as they become available.
 
 ```bash
 python segmentation.py \
---vid=CMwZrkhQ0ck_176810143
+--vid=CMwZrkhQ0ck_130030030
 ```
 Example output:
 
@@ -187,7 +191,7 @@ avoiding abrupt depth changes frame by frame, we design an optimization process 
 
 ```bash
 python track_optimization.py \
---vid=CMwZrkhQ0ck_176810143
+--vid=CMwZrkhQ0ck_130030030
 ```
 Example output:
 
@@ -209,8 +213,8 @@ If you find this code useful, please consider citing:
 @article{jin2024stereo4d,
   title={Stereo4D: Learning How Things Move in 3D from Internet Stereo Videos}, 
   author={Jin, Linyi and Tucker, Richard and Li, Zhengqi and Fouhey, David and Snavely, Noah and Holynski, Aleksander},
-  journal={arXiv preprint},
-  year={2024},
+  journal={CVPR},
+  year={2025},
 }
 ```
 

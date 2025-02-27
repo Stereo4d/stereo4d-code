@@ -525,14 +525,6 @@ def load_dataset_npz(path):
     for k in data_zip.keys():
       data[k] = data_zip[k]
   # --------------
-  # Rig calibration
-  # --------------
-  data['corrections'] = {
-    'rectified2rig_left': data['camera_rotation'][0].T,
-    'rectified2rig_right': data['camera_rotation'][1].T,
-  }
-  data.pop('camera_rotation')
-  # --------------
   # Camera intrinsics
   # --------------
   data['meta_fov'] = {
@@ -545,7 +537,7 @@ def load_dataset_npz(path):
   # --------------
   # Camera poses
   # --------------
-  c2w = data['cameras']  # (T, 3, 4)
+  c2w = data['camera2world']  # (T, 3, 4)
   R = c2w[:, :, :3]
   t = c2w[:, :, 3:]
 
@@ -553,7 +545,7 @@ def load_dataset_npz(path):
   R_inv = np.transpose(R, (0, 2, 1))  # Transpose R
   t_inv = -np.matmul(R_inv, t)
   data['extrs_rectified'] = np.concatenate([R_inv, t_inv], axis=-1)
-  data.pop('cameras')
+  data.pop('camera2world')
   # --------------
   # 3D tracks
   # --------------
