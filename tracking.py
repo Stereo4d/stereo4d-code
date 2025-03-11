@@ -48,7 +48,7 @@ class TapirTracker:
         dict(pyramid_level=1, extra_convs=True, softmax_temperature=10.0)
     )
     self.model = tapir_model.ParameterizedTAPIR(params, state, tapir_kwargs=kwargs)
-    self.chunk_size = 32
+    self.chunk_size = 32 # Adjust this to fit your GPU memory
     self.resize_height = 512
     self.resize_width = 512
     

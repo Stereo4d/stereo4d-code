@@ -12,7 +12,7 @@ Stereo4D: Learning How Things Move in 3D from Internet Stereo Videos
   </a>
 </div>
 
-arXiv 2024
+CVPR 2025
 <h4>
 
 [Linyi Jin](https://jinlinyi.github.io/)<sup>1,2</sup>, 
@@ -50,16 +50,17 @@ high-quality reconstructions.
 <!-- omit in toc -->
 Table of Contents
 ------------------- 
-- [Getting Started](#getting-started)
-  - [Step 0/6 Environment](#step-06-environment)
-  - [Step 1/6 Obtain raw videos and camera poses](#step-16-obtain-raw-videos-and-camera-poses)
-  - [Step 2/6 Rectify raw videos and convert to perspective projections](#step-26-rectify-raw-videos-and-convert-to-perspective-projections)
-  - [Step 3/6 Disparity from stereo matching](#step-36-disparity-from-stereo-matching)
-  - [Step 4/6 Dense point tracking](#step-46-dense-point-tracking)
-  - [Step 5/6 Filter Drifting tracks](#step-56-filter-drifting-tracks)
-  - [Step 6/6 Track optimization](#step-66-track-optimization)
-- [Citation](#citation)
-- [Acknowledgment](#acknowledgment)
+- [🚧 This repository is WIP, please stand by. 🚧](#-this-repository-is-wip-please-stand-by-)
+  - [Getting Started](#getting-started)
+    - [Step 0/6 Environment](#step-06-environment)
+    - [Step 1/6 Download Stereo4D dataset](#step-16-download-stereo4d-dataset)
+    - [Step 2/6 Rectify raw videos and convert to perspective projections](#step-26-rectify-raw-videos-and-convert-to-perspective-projections)
+    - [Step 3/6 Disparity from stereo matching](#step-36-disparity-from-stereo-matching)
+    - [Step 4/6 Dense point tracking](#step-46-dense-point-tracking)
+    - [Step 5/6 Filter Drifting tracks](#step-56-filter-drifting-tracks)
+    - [Step 6/6 Track optimization](#step-66-track-optimization)
+  - [Citation](#citation)
+  - [Acknowledgment](#acknowledgment)
 
 
 
@@ -76,7 +77,47 @@ cd ..
 mamba env create --file=environment.yml
 ```
 
-### Step 1/6 Obtain raw videos and camera poses
+### Step 1/6 Download Stereo4D dataset
+We have released Stereo4D dataset on Google Storage Bucket.
+https://console.cloud.google.com/storage/browser/stereo4d/. 
+
+For each video clip, we release:
+```
+{
+  'name': clip unique id <video_id>_<first_frame_time_stamp>,
+  'video_id': the link to the video `https://www.youtube.com/watch?v=<video_id>,
+  'timestamps': a list of frame time stamp from the original video
+  'camera2world': a list of camera poses corresponding to the rectified frames.
+  'track_lengths', 'track_indices', 'track_coordinates': 3D tracks.
+  'rectified2rig': rotation matrix used to rectify frames.
+  'fov_bounds': camera intrinsics of the VR180 frame, which will be used to get perspective frames..
+}
+``` 
+
+Please follow [gcloud installation guidance](https://cloud.google.com/sdk/docs/install-sdk#installing_the_latest_version) to download the npz files, or
+
+```bash
+# Install gcloud sdk
+curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz
+tar -xf google-cloud-cli-linux-x86_64.tar.gz
+./google-cloud-sdk/install.sh
+./google-cloud-sdk/bin/gcloud init
+```
+
+
+```bash
+# To download one example
+mkdir -p stereo4d_dataset/npz
+gcloud storage cp gs://stereo4d/train/CMwZrkhQ0ck_130030030.npz stereo4d_dataset/npz
+``` 
+
+```bash 
+# To download full dataset
+gsutil -m cp -R gs://stereo4d .
+```
+
+
+
 The original video used as demonstration can be found at the following link:
 https://www.youtube.com/watch?v=CMwZrkhQ0ck
 
@@ -84,17 +125,16 @@ Please obtain the video (7680 x 3840, ~805.8MB, VR180 format) and place it in th
 `stereo4d_dataset/raw/CMwZrkhQ0ck.mp4`.
 The VR180 format contains a side-by-side equirectangular stereo video for the left and right eyes.
 
-The camera poses used in this project were obtained by an internal SfM pipeline.
-You can find an example reference in `release_test.json`. 
+
 
 
 ### Step 2/6 Rectify raw videos and convert to perspective projections
 We have observed that some VR180 videos may not be perfectly rectified. Therefore, we perform rig calibration during bundle adjustment. 
 The script runs the following steps:
 
-1.	**Extract frames** from the specified timestamps and save them as `{videoid}-raw_equirect.mp4`.
+1.	**Extract frames** from the specified `timestamps` and save them as `{videoid}-raw_equirect.mp4`.
 
-2.	**Rectify** the equirectangular video using the rig calibration result in `release_test.json` and save it as `rectified_equirect.mp4`.
+2.	**Rectify** the equirectangular video using the rig calibration result in `rectified2rig` and save it as `rectified_equirect.mp4`.
 
 3.	**Crop** the equirectangular projection to a 60° FoV perspective projection, saving the results as:
 
@@ -116,12 +156,12 @@ https://github.com/user-attachments/assets/c9f9f9ce-dcf8-4164-95e1-03d65235afb3
 https://github.com/user-attachments/assets/55976eb4-a579-4b6d-9d35-0f5b4583391e
 
 
-The released npz file already contains 3D tracks, if this is what you want, then you can skip the following steps and instead follow this example to visualize 3D tracks.
+The released `.npz` files already contain 3D tracks, you can skip the remaining steps and directly use example to visualize them.
 
 [Notebook for visualization](./track_visualization.ipynb)
 
 
-# If you want to reproduce the 3D tracks, continue with the following steps.
+**If you want to reproduce the 3D tracks, continue with the following steps.**
 
 ### Step 3/6 Disparity from stereo matching
 The following script loads the rectified perspective videos, calculates the disparity, and saves the results to `flows_stereo.pkl`.
