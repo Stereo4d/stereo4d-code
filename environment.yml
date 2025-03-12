@@ -1,0 +1,30 @@
+name: stereo4d
+channels:
+  - pytorch
+  - conda-forge
+  - fvcore
+  - iopath
+  - bottler
+  - defaults
+dependencies:
+  - python <= 3.12
+  - pytorch
+  - torchvision
+  - cudatoolkit
+  - pip:
+    - opencv-python
+    - einops
+    - matplotlib
+    - h5py
+    - tqdm
+    - mediapy
+    - "jax[cuda12]"
+    - "tensorflow[and-cuda]"
+    - jaxcam
+    - huggingface-hub
+    - safetensors
+    - einshape
+    - dm-haiku
+    - moviepy
+    - tensorflow_datasets
+
