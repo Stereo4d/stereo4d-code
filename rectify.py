@@ -37,23 +37,20 @@ class EquiVideoLoader:
   def __init__(self, video_id, raw_video_folder):
     self.video_path = osp.join(raw_video_folder, video_id + '.mp4')
 
-  def retrieve_frame_cv2(self, timestamps):
-    vidcap = cv2.VideoCapture(self.video_path)
-    print(self.video_path)
-    video = []
-    for timestamp in tqdm.tqdm(timestamps, desc='Extract frames'):
-      vidcap.set(cv2.CAP_PROP_POS_MSEC, timestamp / 1000)
-      success, image = vidcap.read()
-      # assert success
-      if not success:
-        raise CustomExceptionName('vidcap error', 'vidcap return not success')
-      video.append(image[..., ::-1])
-    return np.stack(video, axis=0)
-
   def retrieve_frames_moviepy(self, timestamps):
     print(self.video_path)
     video = []
     with VideoFileClip(self.video_path) as clip:
+      width, height = clip.size
+      print(f"Video size: {width} x {height}")
+      # equi_video should be in VR180 format, typically >= 2000 pixels height.
+      if height < 2000:
+        raise ValueError(
+        "ERROR: Equirect video has low resolution, is it in VR180 format? "
+        "Expected equirectangular video height > 2k pixels for VR180 format, "
+        f"but got size {width} x {height}"
+      )
+
       for timestamp in tqdm.tqdm(timestamps, desc='Extract frames'):
         try:
           frame = clip.get_frame(timestamp / 1000000)  # Convert to seconds
