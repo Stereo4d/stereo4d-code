@@ -529,7 +529,7 @@ def load_rectified_video(vid: str, output_dir: str, raw_video_folder: str, npz_f
   
   # Load video
   timestamps = dp['timestamps']
-  raw_video_id = vid.split('_')[0]
+  raw_video_id = str(dp['video_id'])
   equi_loader = EquiVideoLoader(raw_video_id, raw_video_folder)
   equi_video = equi_loader.retrieve_frames_moviepy(timestamps)
   media.write_video(
