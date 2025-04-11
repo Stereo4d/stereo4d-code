@@ -3,7 +3,6 @@ import json
 import math
 import os
 import os.path as osp
-from moviepy.video.io.VideoFileClip import VideoFileClip
 
 from absl import app
 from absl import flags
@@ -37,7 +36,35 @@ class EquiVideoLoader:
   def __init__(self, video_id, raw_video_folder):
     self.video_path = osp.join(raw_video_folder, video_id + '.mp4')
 
+
+  def retrieve_frames_cv2(self, timestamps):
+    vidcap = cv2.VideoCapture(self.video_path)
+    video = []
+    if vidcap.isOpened(): 
+      width  = vidcap.get(cv2.CAP_PROP_FRAME_WIDTH)   # float `width`
+      height = vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float `height`
+
+      print(f"Video size: {width} x {height}")
+      # equi_video should be in VR180 format, typically >= 2000 pixels height.
+      if height < 2000:
+        raise ValueError(
+        "ERROR: Equirect video has low resolution, is it in VR180 format? "
+        "Expected equirectangular video height > 2k pixels for VR180 format, "
+        f"but got size {width} x {height}"
+      )
+    else:
+        raise CustomExceptionName('vidcap error', 'video is not opened')
+    for timestamp in tqdm.tqdm(timestamps, desc='Extract frames'):
+      vidcap.set(cv2.CAP_PROP_POS_MSEC, timestamp / 1000)
+      success, image = vidcap.read()
+      if not success: 
+        raise CustomExceptionName('vidcap error', 'vidcap return not success')
+      video.append(image[..., ::-1])
+    return np.stack(video, axis=0)
+
+
   def retrieve_frames_moviepy(self, timestamps):
+    from moviepy.video.io.VideoFileClip import VideoFileClip
     print(self.video_path)
     video = []
     with VideoFileClip(self.video_path) as clip:
@@ -50,10 +77,10 @@ class EquiVideoLoader:
         "Expected equirectangular video height > 2k pixels for VR180 format, "
         f"but got size {width} x {height}"
       )
-
+      print("WARNING: Using moviepy may skip frames")
       for timestamp in tqdm.tqdm(timestamps, desc='Extract frames'):
         try:
-          frame = clip.get_frame(timestamp / 1000000)  # Convert to seconds
+          frame = clip.get_frame((timestamp + 4)/ 1000000)  # Convert to seconds
           video.append(frame)
         except Exception as e:
           raise CustomExceptionName('frame retrieval error', str(e))
@@ -531,7 +558,7 @@ def load_rectified_video(vid: str, output_dir: str, raw_video_folder: str, npz_f
   timestamps = dp['timestamps']
   raw_video_id = str(dp['video_id'])
   equi_loader = EquiVideoLoader(raw_video_id, raw_video_folder)
-  equi_video = equi_loader.retrieve_frames_moviepy(timestamps)
+  equi_video = equi_loader.retrieve_frames_cv2(timestamps)
   media.write_video(
     osp.join(output_dir, vid, f"{vid}-raw_equirect.mp4"),
     equi_video, 

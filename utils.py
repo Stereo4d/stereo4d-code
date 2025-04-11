@@ -438,7 +438,6 @@ def plot_3d_tracks_plt(
   color_map = matplotlib.colormaps.get_cmap('hsv')
   cmap_norm = matplotlib.colors.Normalize(vmin=0, vmax=num_points - 1)
 
-  # sort points by height of their first appearance
   point_colors = np.zeros((num_points, 3))
   for i in range(num_points):
     point_colors[i] = np.array(color_map(cmap_norm(i)))[:3]
