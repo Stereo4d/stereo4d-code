@@ -162,7 +162,7 @@ Example output:
 
 
 
-https://github.com/user-attachments/assets/14d35e76-dc14-4673-baf1-15d2cab56142
+https://github.com/user-attachments/assets/06d16a16-b3da-4c63-974e-efc5ed53e648
 
 
 
@@ -174,8 +174,7 @@ https://github.com/user-attachments/assets/14d35e76-dc14-4673-baf1-15d2cab56142
 
 
 
-https://github.com/user-attachments/assets/285b72a0-052a-4029-aa5e-b8a65ed986bf
-
+https://github.com/user-attachments/assets/39e3d57a-bc05-4f0e-9fe3-84251b9c799a
 
 
 
@@ -215,8 +214,8 @@ Example output:
 
 
 
+https://github.com/user-attachments/assets/6f2ad8b2-92ab-4940-a63b-4bd75b75cf3c
 
-https://github.com/user-attachments/assets/78843036-38eb-4471-b232-e0529dbff0a5
 
 
 
@@ -237,7 +236,8 @@ Example output:
 
 
 
-https://github.com/user-attachments/assets/12677985-c16b-4b11-9aac-e4778ab70d90
+https://github.com/user-attachments/assets/205e112b-9b2e-4c56-a842-d1d100247435
+
 
 
 
@@ -246,7 +246,9 @@ We then fuse these quantities into 4D reconstructions, by lifting the 2D tracks 
 
 
 
-https://github.com/user-attachments/assets/045b06a2-1248-43ca-ae7a-a8a684185d6a
+https://github.com/user-attachments/assets/e58b4663-fcd9-495c-8b52-d7b62762f182
+
+
 
 
 
@@ -269,7 +271,8 @@ Example output:
 
 
 
-https://github.com/user-attachments/assets/a34cde36-1e94-46ba-8fa4-e489e9edd390
+
+https://github.com/user-attachments/assets/3503a7ac-2838-4ffa-8880-d30e97970a4d
 
 
 
@@ -277,7 +280,8 @@ https://github.com/user-attachments/assets/a34cde36-1e94-46ba-8fa4-e489e9edd390
 
 
 
-https://github.com/user-attachments/assets/5e5eadc0-106e-4350-8ec7-dfd5ee9490b1
+https://github.com/user-attachments/assets/4f8d3d6b-c5bb-4541-a1f0-fec39d855622
+
 
 
 
@@ -286,7 +290,9 @@ https://github.com/user-attachments/assets/5e5eadc0-106e-4350-8ec7-dfd5ee9490b1
 
 
 
-https://github.com/user-attachments/assets/ffc63147-2f3f-4a2b-9343-fd0ee5cbaf84
+
+https://github.com/user-attachments/assets/de54ae5e-f653-4561-b656-330b43430b90
+
 
 
 
