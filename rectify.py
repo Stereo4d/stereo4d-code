@@ -49,7 +49,7 @@ class EquiVideoLoader:
       if height < 1920:
         raise ValueError(
         "ERROR: Equirect video has low resolution, is it in VR180 format? "
-        "Expected equirectangular video height > 1920 pixels for VR180 format, "
+        "Expected equirectangular video height >= 1920 pixels for VR180 format, "
         f"but got size {width} x {height}"
       )
     else:
@@ -74,7 +74,7 @@ class EquiVideoLoader:
       if height < 1920:
         raise ValueError(
         "ERROR: Equirect video has low resolution, is it in VR180 format? "
-        "Expected equirectangular video height > 1920 pixels for VR180 format, "
+        "Expected equirectangular video height >= 1920 pixels for VR180 format, "
         f"but got size {width} x {height}"
       )
       print("WARNING: Using moviepy may skip frames")
