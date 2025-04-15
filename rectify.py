@@ -45,11 +45,11 @@ class EquiVideoLoader:
       height = vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float `height`
 
       print(f"Video size: {width} x {height}")
-      # equi_video should be in VR180 format, typically >= 2000 pixels height.
-      if height < 2000:
+      # equi_video should be in VR180 format, typically >= 1920 pixels height.
+      if height < 1920:
         raise ValueError(
         "ERROR: Equirect video has low resolution, is it in VR180 format? "
-        "Expected equirectangular video height > 2k pixels for VR180 format, "
+        "Expected equirectangular video height > 1920 pixels for VR180 format, "
         f"but got size {width} x {height}"
       )
     else:
@@ -70,11 +70,11 @@ class EquiVideoLoader:
     with VideoFileClip(self.video_path) as clip:
       width, height = clip.size
       print(f"Video size: {width} x {height}")
-      # equi_video should be in VR180 format, typically >= 2000 pixels height.
-      if height < 2000:
+      # equi_video should be in VR180 format, typically >= 1920 pixels height.
+      if height < 1920:
         raise ValueError(
         "ERROR: Equirect video has low resolution, is it in VR180 format? "
-        "Expected equirectangular video height > 2k pixels for VR180 format, "
+        "Expected equirectangular video height > 1920 pixels for VR180 format, "
         f"but got size {width} x {height}"
       )
       print("WARNING: Using moviepy may skip frames")
