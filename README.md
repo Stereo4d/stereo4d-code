@@ -80,7 +80,7 @@ mamba env create --file=environment.yml
 ```
 
 ### Step 1/6 Download Stereo4D dataset
-We have released Stereo4D dataset annotations (4.3 TB) on Google Storage Bucket.
+We have released Stereo4D dataset annotations (3.6 TB) on Google Storage Bucket.
 https://console.cloud.google.com/storage/browser/stereo4d/.
 The annotations are under [CC license](https://creativecommons.org/licenses/by/4.0/legalcode.txt).  
 
