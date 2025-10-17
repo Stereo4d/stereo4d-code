@@ -49,6 +49,8 @@ high-quality reconstructions.
 
 <em>This is not an officially supported Google product.</em>
 
+## 🔥 News
+- **[Oct 2025]** DynaDUSt3R has been reimplemented and released in PyTorch! Check out Kevin Mathew's unofficial implementation at [dynadust3r](https://github.com/KevinMathewT/dynadust3r-unofficial). Thanks Kevin! 🙏
 
 <!-- omit in toc -->
 Table of Contents
